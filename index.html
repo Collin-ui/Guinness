@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guinness Rating App</title>
+<style>
+  /* ----------------- Global ----------------- */
+  body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #0a0a0a;
+    color: #fff;
+  }
+  .hidden { display: none; }
+  .page { padding: 1rem; min-height: 85vh; }
+  h1, h2 { margin: 0.5rem 0; }
+  button { cursor: pointer; }
+
+  /* ----------------- Bottom Menu ----------------- */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 60px;
+    background-color: #111;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid #333;
+    z-index: 100;
+  }
+  .bottom-nav button {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .bottom-nav button.active { color: #d4af37; }
+
+  /* ----------------- Pint Icons ----------------- */
+  .pint-row { display: flex; gap: 5px; margin: 5px 0; }
+  .pint { width: 30px; height: 50px; cursor: pointer; transition: transform 0.1s; }
+  .pint:hover { transform: scale(1.2); }
+  .pint.empty { fill: #555; }
+  .pint.full { fill: #d4af37; }
+
+  /* ----------------- Inputs ----------------- */
+  input[type="text"] { padding: 0.5rem; width: 100%; margin: 5px 0; border-radius: 5px; border: none; }
+  input[type="file"] { margin: 5px 0; color: #fff; }
+  .save-btn { padding: 0.7rem 1.2rem; background-color: #d4af37; color: #000; border: none; border-radius: 5px; font-weight: bold; margin-top: 10px; }
+
+  /* ----------------- Image Preview ----------------- */
+  .preview { margin: 10px 0; max-width: 100%; border-radius: 5px; }
+
+  /* ----------------- Pub Crawl ----------------- */
+  .crawl-pub { background-color: #111; padding: 0.5rem; border: 1px solid #333; border-radius: 5px; margin: 5px 0; }
+  .crawl-list { margin: 10px 0; }
+
+</style>
+</head>
+<body>
+
+<!-- ----------------- Pages ----------------- -->
+<div id="page-new-pint" class="page">
+  <h1>New Pint</h1>
+  <input type="text" id="pub-name" placeholder="Pub Name" />
+  <input type="file" id="pub-image" accept="image/*"/>
+  <img id="image-preview" class="preview hidden"/>
+  
+  <h2>Rate your Pint</h2>
+  <div id="categories"></div>
+
+  <h2>Overall Rating</h2>
+  <div id="overall" class="pint-row"></div>
+
+  <button class="save-btn" onclick="savePint()">Save Pint</button>
+</div>
+
+<div id="page-pub-crawl" class="page hidden">
+  <h1>Pub Crawl</h1>
+  <input type="text" id="crawl-name" placeholder="Crawl Name"/>
+  <div id="participants">
+    <input type="text" placeholder="Participant 1"/>
+    <input type="text" placeholder="Participant 2"/>
+    <input type="text" placeholder="Participant 3"/>
+    <input type="text" placeholder="Participant 4"/>
+    <input type="text" placeholder="Participant 5"/>
+  </div>
+  <div class="crawl-list" id="crawl-pubs"></div>
+  <button class="save-btn" onclick="addCrawlPub()">+ Add Pub</button>
+</div>
+
+<div id="page-map" class="page hidden">
+  <h1>Map</h1>
+  <p>Coming soon...</p>
+</div>
+
+<div id="page-profile" class="page hidden">
+  <h1>Profile</h1>
+  <p>Coming soon...</p>
+</div>
+
+<!-- ----------------- Bottom Nav ----------------- -->
+<div class="bottom-nav">
+  <button id="nav-map" onclick="showPage('page-map')">🗺️<span>Map</span></button>
+  <button id="nav-pub-crawl" onclick="showPage('page-pub-crawl')">👥<span>Crawl</span></button>
+  <button id="nav-new-pint" onclick="showPage('page-new-pint')">➕<span>New Pint</span></button>
+  <button id="nav-profile" onclick="showPage('page-profile')">🧑<span>Profile</span></button>
+</div>
+
+<!-- ----------------- JS ----------------- -->
+<script>
+  // ----------------- Navigation -----------------
+  const pages = ['page-map','page-pub-crawl','page-new-pint','page-profile'];
+  function showPage(id) {
+    pages.forEach(p => document.getElementById(p).classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    // Highlight nav
+    pages.forEach(p => document.getElementById('nav-'+p.split('-')[1]).classList.remove('active'));
+    document.getElementById('nav-'+id.split('-')[1]).classList.add('active');
+  }
+  showPage('page-new-pint'); // default
+
+  // ----------------- Pint Categories -----------------
+  const categories = ['Creaminess','Head','Taste','Temperature','Pub Atmosphere'];
+  const ratings = {};
+  const maxScore = 5;
+  const categoryContainer = document.getElementById('categories');
+  const overallContainer = document.getElementById('overall');
+
+  categories.forEach(cat => {
+    ratings[cat] = 0;
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${cat}</strong>`;
+    const row = document.createElement('div');
+    row.classList.add('pint-row');
+    for(let i=1;i<=maxScore;i++){
+      const pint = document.createElementNS("http://www.w3.org/2000/svg","svg");
+      pint.setAttribute("viewBox","0 0 64 64");
+      pint.classList.add('pint','empty');
+      pint.innerHTML = '<rect width="64" height="64"/>'; // simple placeholder for pint
+      pint.addEventListener('click', ()=> setRating(cat,i));
+      row.appendChild(pint);
+    }
+    div.appendChild(row);
+    categoryContainer.appendChild(div);
+  });
+
+  function setRating(cat,score){
+    ratings[cat] = score;
+    const divs = categoryContainer.children;
+    for(let d=0; d<divs.length; d++){
+      if(divs[d].children[0].innerText === cat){
+        const pints = divs[d].children[1].children;
+        for(let i=0;i<pints.length;i++){
+          if(i<score) pints[i].classList.add('full');
+          else pints[i].classList.remove('full');
+        }
+      }
+    }
+    updateOverall();
+  }
+
+  function updateOverall(){
+    overallContainer.innerHTML='';
+    const sum = Object.values(ratings).reduce((a,b)=>a+b,0);
+    const totalPints = 10;
+    const avg = Math.round(sum / (categories.length*maxScore)*totalPints);
+    for(let i=1;i<=totalPints;i++){
+      const pint = document.createElementNS("http://www.w3.org/2000/svg","svg");
+      pint.setAttribute("viewBox","0 0 64 64");
+      pint.classList.add('pint',i<=avg?'full':'empty');
+      pint.innerHTML = '<rect width="64" height="64"/>'; 
+      overallContainer.appendChild(pint);
+    }
+  }
+
+  // ----------------- Image Preview -----------------
+  const imgInput = document.getElementById('pub-image');
+  const imgPreview = document.getElementById('image-preview');
+  imgInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        imgPreview.src = ev.target.result;
+        imgPreview.classList.remove('hidden');
+      }
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // ----------------- Save Pint -----------------
+  function savePint(){
+    const pubName = document.getElementById('pub-name').value.trim();
+    if(!pubName){ alert('Please enter Pub Name'); return; }
+    const pintData = {
+      pubName,
+      image: imgPreview.src || '',
+      ratings: {...ratings}
+    };
+    const saved = JSON.parse(localStorage.getItem('pints')||'[]');
+    saved.push(pintData);
+    localStorage.setItem('pints', JSON.stringify(saved));
+    alert('Pint saved!');
+    // Reset form
+    document.getElementById('pub-name').value='';
+    imgPreview.src=''; imgPreview.classList.add('hidden');
+    for(let cat in ratings) ratings[cat]=0;
+    updateOverall();
+    const allPints = document.querySelectorAll('.pint');
+    allPints.forEach(p => p.classList.remove('full'));
+  }
+
+  // ----------------- Pub Crawl -----------------
+  function addCrawlPub(){
+    const list = document.getElementById('crawl-pubs');
+    const div = document.createElement('div');
+    div.classList.add('crawl-pub');
+    div.innerHTML = 'New Pub (click to rate)';
+    list.appendChild(div);
+  }
+
+</script>
+
+</body>
+</html>
